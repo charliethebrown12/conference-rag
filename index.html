@@ -132,6 +132,22 @@
                     </div>
                     <div class="search-results" id="rag-results"></div>
                 </div>
+
+                <!-- Panel 4: Saved Talks (custom feature + per-user RLS) -->
+                <div class="search-panel panel-ready" id="saved-panel">
+                    <div class="panel-header">
+                        <h3>⭐ My Saved Talks</h3>
+                        <span class="status-badge ready" id="saved-status">🟢 Ready</span>
+                    </div>
+                    <p class="panel-description">Bookmark talks from search results. Each user only sees their own
+                        saves — enforced by Row Level Security (<code>auth.uid() = user_id</code>).</p>
+                    <div class="panel-input">
+                        <button id="refresh-saved-btn" class="btn-secondary">Refresh list</button>
+                    </div>
+                    <div class="search-results" id="saved-results">
+                        <div class="no-results">Save a talk from Keyword, Semantic, or RAG results to see it here.</div>
+                    </div>
+                </div>
             </div>
         </div>
     </div>

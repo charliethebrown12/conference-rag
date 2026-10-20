@@ -286,6 +286,8 @@ function showApp(user) {
     if (userEmailSpan) userEmailSpan.textContent = user.email;
     // Check search readiness when user logs in
     checkSearchReadiness();
+    // Load this user's bookmarks (RLS filters to auth.uid())
+    loadSavedTalks();
 }
 
 function showMessage(text, type) {
@@ -435,6 +437,7 @@ async function keywordSearch() {
             const talkId = row.talk_id;
             if (!talks[talkId]) {
                 talks[talkId] = {
+                    talk_id: talkId,
                     title: row.title || 'Unknown Talk',
                     speaker: row.speaker || 'Unknown Speaker',
                     url: row.url || '',
@@ -447,8 +450,13 @@ async function keywordSearch() {
         let html = '';
         for (const talk of Object.values(talks)) {
             html += `<div class="result-card">
-                <div class="result-title"><a href="${escapeHtml(talk.url)}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a></div>
-                <div class="result-speaker">by ${escapeHtml(talk.speaker)}</div>
+                <div class="result-card-header">
+                    <div>
+                        <div class="result-title"><a href="${escapeHtml(talk.url)}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a></div>
+                        <div class="result-speaker">by ${escapeHtml(talk.speaker)}</div>
+                    </div>
+                    ${saveTalkButton(talk)}
+                </div>
                 <div class="result-sentences">${talk.sentences.slice(0, 3).join('<br>')}</div>
             </div>`;
         }
@@ -490,7 +498,7 @@ async function semanticSearch() {
             return;
         }
 
-        // Step 3: Display results with similarity badges
+        // Step 3: Display results with similarity badges + save
         let html = '';
         for (const result of results) {
             const sim = result.similarity;
@@ -498,10 +506,13 @@ async function semanticSearch() {
             html += `<div class="result-card">
                 <div class="result-card-header">
                     <div>
-                        <div class="result-title"><a href="${escapeHtml(result.url)}" target="_blank" class="result-title-link">${escapeHtml(result.title)}</a></div>
+                        <div class="result-title"><a href="${escapeHtml(result.url || '')}" target="_blank" class="result-title-link">${escapeHtml(result.title)}</a></div>
                         <div class="result-speaker">by ${escapeHtml(result.speaker)}</div>
                     </div>
-                    ${badge}
+                    <div class="result-card-actions">
+                        ${badge}
+                        ${saveTalkButton(result)}
+                    </div>
                 </div>
                 <div class="result-sentences">${escapeHtml(result.text)}</div>
             </div>`;
@@ -556,17 +567,20 @@ async function askQuestion() {
             <div class="result-sentences">${escapeHtml(answer)}</div>
         </div>`;
 
-        // Show source talks with per-talk similarity badges and links
+        // Show source talks with per-talk similarity badges, links, and save
         html += '<div class="result-sources"><strong>Sources:</strong></div>';
         for (const talk of topTalks) {
             const talkBadge = similarityBadge(talk.avgSimilarity);
             html += `<div class="result-card result-source">
                 <div class="result-card-header">
                     <div>
-                        <div class="result-title"><a href="${escapeHtml(talk.url)}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a></div>
+                        <div class="result-title"><a href="${escapeHtml(talk.url || '')}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a></div>
                         <div class="result-speaker">by ${escapeHtml(talk.speaker)}</div>
                     </div>
-                    ${talkBadge}
+                    <div class="result-card-actions">
+                        ${talkBadge}
+                        ${saveTalkButton(talk)}
+                    </div>
                 </div>
             </div>`;
         }
@@ -731,6 +745,133 @@ function similarityBadge(similarity) {
 }
 
 // ============================================
+// SAVED TALKS (custom feature — per-user RLS)
+// ============================================
+// Table: saved_talks
+// Policies: SELECT/INSERT/DELETE only when auth.uid() = user_id
+// The anon key stays public; the database enforces ownership.
+
+const savedTalkIds = new Set();
+
+function escapeAttr(text) {
+    return String(text ?? '')
+        .replace(/&/g, '&amp;')
+        .replace(/"/g, '&quot;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;');
+}
+
+function saveTalkButton(talk) {
+    const talkId = talk.talk_id || '';
+    if (!talkId) return '';
+    const isSaved = savedTalkIds.has(talkId);
+    const label = isSaved ? '★ Saved' : '☆ Save';
+    const cls = isSaved ? 'save-talk-btn saved' : 'save-talk-btn';
+    return `<button type="button" class="${cls}"
+        data-talk-id="${escapeAttr(talkId)}"
+        data-title="${escapeAttr(talk.title || '')}"
+        data-speaker="${escapeAttr(talk.speaker || '')}"
+        data-url="${escapeAttr(talk.url || '')}">${label}</button>`;
+}
+
+async function loadSavedTalks() {
+    const savedResults = document.getElementById('saved-results');
+    if (!supabaseClient || !savedResults) return;
+
+    const { data: { user } } = await supabaseClient.auth.getUser();
+    if (!user) {
+        savedResults.innerHTML = '<div class="no-results">Sign in to save talks.</div>';
+        return;
+    }
+
+    const { data, error } = await supabaseClient
+        .from('saved_talks')
+        .select('id, talk_id, title, speaker, url, created_at')
+        .order('created_at', { ascending: false });
+
+    if (error) {
+        savedResults.innerHTML = `<div class="result-error">Error loading saves: ${escapeHtml(error.message)}</div>`;
+        return;
+    }
+
+    savedTalkIds.clear();
+    for (const row of data || []) {
+        savedTalkIds.add(row.talk_id);
+    }
+
+    // Refresh save-button labels on any visible results
+    document.querySelectorAll('.save-talk-btn').forEach((btn) => {
+        const id = btn.dataset.talkId;
+        const saved = savedTalkIds.has(id);
+        btn.textContent = saved ? '★ Saved' : '☆ Save';
+        btn.classList.toggle('saved', saved);
+    });
+
+    if (!data || data.length === 0) {
+        savedResults.innerHTML = '<div class="no-results">Save a talk from Keyword, Semantic, or RAG results to see it here.</div>';
+        return;
+    }
+
+    let html = '';
+    for (const talk of data) {
+        const titleHtml = talk.url
+            ? `<a href="${escapeHtml(talk.url)}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a>`
+            : escapeHtml(talk.title);
+        html += `<div class="result-card">
+            <div class="result-card-header">
+                <div>
+                    <div class="result-title">${titleHtml}</div>
+                    <div class="result-speaker">by ${escapeHtml(talk.speaker || 'Unknown')}</div>
+                </div>
+                <button type="button" class="save-talk-btn saved" data-unsave-id="${escapeHtml(talk.id)}" data-talk-id="${escapeHtml(talk.talk_id)}">★ Remove</button>
+            </div>
+        </div>`;
+    }
+    savedResults.innerHTML = html;
+}
+
+async function toggleSaveTalk(btn) {
+    if (!supabaseClient || btn.disabled) return;
+
+    const unsaveId = btn.dataset.unsaveId;
+    const talkId = btn.dataset.talkId;
+
+    btn.disabled = true;
+    try {
+        if (unsaveId || savedTalkIds.has(talkId)) {
+            // Remove bookmark
+            let query = supabaseClient.from('saved_talks').delete();
+            if (unsaveId) {
+                query = query.eq('id', unsaveId);
+            } else {
+                query = query.eq('talk_id', talkId);
+            }
+            const { error } = await query;
+            if (error) throw error;
+            savedTalkIds.delete(talkId);
+        } else {
+            const { data: { user } } = await supabaseClient.auth.getUser();
+            if (!user) throw new Error('Not signed in');
+
+            const { error } = await supabaseClient.from('saved_talks').insert({
+                user_id: user.id,
+                talk_id: talkId,
+                title: btn.dataset.title || 'Untitled',
+                speaker: btn.dataset.speaker || '',
+                url: btn.dataset.url || ''
+            });
+            if (error) throw error;
+            savedTalkIds.add(talkId);
+        }
+        await loadSavedTalks();
+    } catch (err) {
+        alert(`Could not update saved talk: ${err.message}`);
+    } finally {
+        btn.disabled = false;
+    }
+}
+
+// ============================================
 // EVENT LISTENERS
 // ============================================
 
@@ -750,6 +891,15 @@ if (semanticInput) semanticInput.addEventListener('keypress', (e) => {
 if (ragBtn) ragBtn.addEventListener('click', askQuestion);
 if (ragInput) ragInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') askQuestion();
+});
+
+// Saved talks: refresh + delegated save/unsave clicks
+const refreshSavedBtn = document.getElementById('refresh-saved-btn');
+if (refreshSavedBtn) refreshSavedBtn.addEventListener('click', loadSavedTalks);
+
+document.addEventListener('click', (e) => {
+    const btn = e.target.closest('.save-talk-btn');
+    if (btn) toggleSaveTalk(btn);
 });
 
 // ============================================

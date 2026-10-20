@@ -597,6 +597,51 @@ input:focus {
     gap: var(--spacing-sm);
 }
 
+.result-card-actions {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.save-talk-btn {
+    background: transparent;
+    border: 1px solid var(--surface-light);
+    color: var(--text-muted);
+    border-radius: var(--radius-sm);
+    padding: 0.25rem 0.6rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.save-talk-btn:hover {
+    border-color: var(--primary);
+    color: var(--primary);
+}
+
+.save-talk-btn.saved {
+    border-color: #fbbf24;
+    color: #fbbf24;
+    background: rgba(251, 191, 36, 0.1);
+}
+
+.save-talk-btn:disabled {
+    opacity: 0.5;
+    cursor: wait;
+}
+
+#saved-panel .panel-input {
+    margin-bottom: var(--spacing-sm);
+}
+
+#saved-panel code {
+    font-size: 0.8em;
+    color: var(--primary);
+}
+
 .similarity-badge {
     padding: 0.2rem 0.6rem;
     border-radius: 999px;
