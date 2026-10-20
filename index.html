@@ -139,13 +139,16 @@
                         <h3>⭐ My Saved Talks</h3>
                         <span class="status-badge ready" id="saved-status">🟢 Ready</span>
                     </div>
-                    <p class="panel-description">Bookmark talks from search results. Each user only sees their own
-                        saves — enforced by Row Level Security (<code>auth.uid() = user_id</code>).</p>
+                    <p class="panel-description">
+                        <strong>How to save:</strong> run Keyword, Semantic, or Ask a Question above, then click
+                        <strong>☆ Save Talk</strong> on any result card. Your list below is private — RLS enforces
+                        <code>auth.uid() = user_id</code>.
+                    </p>
                     <div class="panel-input">
                         <button id="refresh-saved-btn" class="btn-secondary">Refresh list</button>
                     </div>
                     <div class="search-results" id="saved-results">
-                        <div class="no-results">Save a talk from Keyword, Semantic, or RAG results to see it here.</div>
+                        <div class="no-results">No saved talks yet. Search above, then click <strong>☆ Save Talk</strong> on a result.</div>
                     </div>
                 </div>
             </div>

@@ -604,28 +604,39 @@ input:focus {
     flex-shrink: 0;
 }
 
+.result-save-row {
+    margin-top: var(--spacing-sm);
+    padding-top: var(--spacing-sm);
+    border-top: 1px solid var(--surface-light);
+}
+
 .save-talk-btn {
-    background: transparent;
-    border: 1px solid var(--surface-light);
-    color: var(--text-muted);
+    background: rgba(62, 207, 142, 0.12);
+    border: 1px solid var(--primary);
+    color: var(--primary);
     border-radius: var(--radius-sm);
-    padding: 0.25rem 0.6rem;
-    font-size: 0.75rem;
-    font-weight: 600;
+    padding: 0.45rem 0.9rem;
+    font-size: 0.85rem;
+    font-weight: 700;
     cursor: pointer;
     transition: all 0.2s ease;
     white-space: nowrap;
 }
 
 .save-talk-btn:hover {
-    border-color: var(--primary);
-    color: var(--primary);
+    background: var(--primary);
+    color: #0f172a;
 }
 
 .save-talk-btn.saved {
     border-color: #fbbf24;
     color: #fbbf24;
-    background: rgba(251, 191, 36, 0.1);
+    background: rgba(251, 191, 36, 0.12);
+}
+
+.save-talk-btn.saved:hover {
+    background: #fbbf24;
+    color: #0f172a;
 }
 
 .save-talk-btn:disabled {

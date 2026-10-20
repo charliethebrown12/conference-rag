@@ -455,9 +455,9 @@ async function keywordSearch() {
                         <div class="result-title"><a href="${escapeHtml(talk.url)}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a></div>
                         <div class="result-speaker">by ${escapeHtml(talk.speaker)}</div>
                     </div>
-                    ${saveTalkButton(talk)}
                 </div>
                 <div class="result-sentences">${talk.sentences.slice(0, 3).join('<br>')}</div>
+                <div class="result-save-row">${saveTalkButton(talk)}</div>
             </div>`;
         }
         showResults('keyword', html);
@@ -509,12 +509,10 @@ async function semanticSearch() {
                         <div class="result-title"><a href="${escapeHtml(result.url || '')}" target="_blank" class="result-title-link">${escapeHtml(result.title)}</a></div>
                         <div class="result-speaker">by ${escapeHtml(result.speaker)}</div>
                     </div>
-                    <div class="result-card-actions">
-                        ${badge}
-                        ${saveTalkButton(result)}
-                    </div>
+                    ${badge}
                 </div>
                 <div class="result-sentences">${escapeHtml(result.text)}</div>
+                <div class="result-save-row">${saveTalkButton(result)}</div>
             </div>`;
         }
         showResults('semantic', html);
@@ -577,11 +575,9 @@ async function askQuestion() {
                         <div class="result-title"><a href="${escapeHtml(talk.url || '')}" target="_blank" class="result-title-link">${escapeHtml(talk.title)}</a></div>
                         <div class="result-speaker">by ${escapeHtml(talk.speaker)}</div>
                     </div>
-                    <div class="result-card-actions">
-                        ${talkBadge}
-                        ${saveTalkButton(talk)}
-                    </div>
+                    ${talkBadge}
                 </div>
+                <div class="result-save-row">${saveTalkButton(talk)}</div>
             </div>`;
         }
         showResults('rag', html);
@@ -763,9 +759,12 @@ function escapeAttr(text) {
 
 function saveTalkButton(talk) {
     const talkId = talk.talk_id || '';
-    if (!talkId) return '';
-    const isSaved = savedTalkIds.has(talkId);
-    const label = isSaved ? '★ Saved' : '☆ Save';
+    if (!talkId) {
+        console.warn('saveTalkButton: missing talk_id', talk);
+        return '';
+    }
+    const isSaved = savedTalkIds.has(String(talkId));
+    const label = isSaved ? '★ Saved' : '☆ Save Talk';
     const cls = isSaved ? 'save-talk-btn saved' : 'save-talk-btn';
     return `<button type="button" class="${cls}"
         data-talk-id="${escapeAttr(talkId)}"
@@ -796,19 +795,19 @@ async function loadSavedTalks() {
 
     savedTalkIds.clear();
     for (const row of data || []) {
-        savedTalkIds.add(row.talk_id);
+        savedTalkIds.add(String(row.talk_id));
     }
 
     // Refresh save-button labels on any visible results
     document.querySelectorAll('.save-talk-btn').forEach((btn) => {
-        const id = btn.dataset.talkId;
+        const id = String(btn.dataset.talkId || '');
         const saved = savedTalkIds.has(id);
-        btn.textContent = saved ? '★ Saved' : '☆ Save';
+        btn.textContent = saved ? '★ Saved' : '☆ Save Talk';
         btn.classList.toggle('saved', saved);
     });
 
     if (!data || data.length === 0) {
-        savedResults.innerHTML = '<div class="no-results">Save a talk from Keyword, Semantic, or RAG results to see it here.</div>';
+        savedResults.innerHTML = '<div class="no-results">No saved talks yet. Search above, then click <strong>☆ Save Talk</strong> on a result.</div>';
         return;
     }
 
@@ -834,7 +833,7 @@ async function toggleSaveTalk(btn) {
     if (!supabaseClient || btn.disabled) return;
 
     const unsaveId = btn.dataset.unsaveId;
-    const talkId = btn.dataset.talkId;
+    const talkId = String(btn.dataset.talkId || '');
 
     btn.disabled = true;
     try {
